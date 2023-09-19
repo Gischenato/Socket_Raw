@@ -1,64 +1,60 @@
-#!/usr/bin/env python
-from socket import socket, AF_PACKET, SOCK_RAW
-import struct
+from socket import socket, AF_INET, SOCK_DGRAM
+import threading
 
-s = socket(AF_PACKET, SOCK_RAW)
-s.bind(("eth0", 0))
+USER_SOCKET = socket(AF_INET, SOCK_DGRAM)
+SERVER_ADDR = ('172.20.32.1', 12000)
+USER_SOCKET.settimeout(1)
 
-payload = "TESTEEEEE"
+generate_message = lambda data: f'[{", ".join(data)}]'
 
-#! =============================================================
-#? Ethernet header
+def send_message(msg):
+    msg = generate_message(msg)
+    # print(f'sending {msg} to {SERVER_ADDR}')
+    USER_SOCKET.sendto(msg.encode(), SERVER_ADDR)
 
-src_addr = "\x00\x15\x5d\x57\x95\x09"
-dst_addr = "\x00\x15\x5d\x57\x95\x09"
-ethertype = "\x80\x00"
+def login(username):
+    send_message(['login', username])
 
-header_ethernet = struct.pack('!6s6s2s', dst_addr.encode(), src_addr.encode(), ethertype.encode())
-#! =============================================================
-#? IP header
+def logout(username):
+    send_message(['logout', username])
 
-vers_ihl = "\x45" 
-type = "\x00"
-total_length = "\x00\x54" # 84 bytes
-identification = "\x00\x00"
-flags_fo = "\x00\x00"
-ttl = "\x40" # 64
-protocol = "\x11" # UDP
-header_checksum = "\x00\x00" # will be filled later
-src_addr = "\xac\x14\x2d\x30" # 172.20.45.48
-dst_addr = "\xac\x14\x2d\x30"
+def private_message(username, message):
+    # print('--- private message ----')
+    send_message(['pm', username, message])
 
-header_ip = struct.pack(
-    '!1s1s2s2s2s1s1s2s4s4s',
-    vers_ihl.encode(),
-    type.encode(),
-    total_length.encode(),
-    identification.encode(),
-    flags_fo.encode(),
-    ttl.encode(),
-    protocol.encode(),
-    header_checksum.encode(),
-    src_addr.encode(),
-    dst_addr.encode()
-    )
-#! =============================================================
-#? UDP header
+def broadcast_message(message):
+    # print('----- broadcasting -----')
+    send_message(['broadcast', message])
 
-# port = 12000
-src_port = "\x2e\xe0" # 12000
-dst_port = "\x2e\xe0" # 12000
-length = "\x00\x34" # 52 bytes
-checksum = "\x00\x00" # will be filled later
+def handle_user_input():
+    msg = input()
+    if (msg.startswith('/')):
+        msg = msg[1:].split(' ')
+        if (msg[0] == 'exit'): return -1
+        elif (msg[0] == 'pm'):
+            private_message(msg[1], ' '.join(msg[2:]))
+        return 0
+    broadcast_message(msg)
+    return 0
 
-header_udp = struct.pack(
-    '!2s2s2s2s',
-    src_port.encode(),
-    dst_port.encode(),
-    length.encode(),
-    checksum.encode()
-    )
-#! =============================================================
+def thread_listen():
+    while True:
+        try:
+            message, _ = USER_SOCKET.recvfrom(2048)
+            message = message.decode()
+            print('<msg> ' + message)
+        except:
+            if not threading.main_thread().is_alive(): break
+            
+
+def main():
+    username = input('Enter your username: ')
+    login(username)
+    x = threading.Thread(target=thread_listen)
+    x.start()
+    while True:
+        if(handle_user_input() == -1): break
+    logout(username)
 
 
-s.send(header_ethernet + header_ip + header_udp + payload.encode())
+main()
