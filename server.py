@@ -2,15 +2,18 @@ from socket import *
 from socket import socket, AF_INET, SOCK_DGRAM
 serverPort = 12000
 SERVER_SOCKET = socket(AF_INET, SOCK_DGRAM)
-SERVER_SOCKET.bind(('172.20.32.1', serverPort))
+SERVER_SOCKET.bind(('172.17.16.1', serverPort))
 print ("The server is ready to receive")
 
 USERS = dict()
 USERS_NAMES = dict()
 
+convert_coma = lambda txt: str(txt).replace('%;', ',')
+
 def unpack_message(message):
     data = message.strip('][').split(', ')
     return data
+
 
 def handle(message, clientAddr):
     HANDLER = {
@@ -25,9 +28,10 @@ def handle(message, clientAddr):
 
 def handle_private_message(broadcast_data, clientAddr):
     global USERS, USERS_NAMES
+    print(broadcast_data, clientAddr)
     sender = USERS_NAMES[clientAddr]
     receiver = broadcast_data[0]
-    message = broadcast_data[1]
+    message = convert_coma(broadcast_data[1])
     if (receiver in USERS):
         print(f'message: "{message}" to {receiver}')
         newMsg = f'[{sender}] {message}'

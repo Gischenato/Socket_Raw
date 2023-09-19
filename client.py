@@ -2,10 +2,12 @@ from socket import socket, AF_INET, SOCK_DGRAM
 import threading
 
 USER_SOCKET = socket(AF_INET, SOCK_DGRAM)
-SERVER_ADDR = ('172.20.32.1', 12000)
+SERVER_ADDR = ('172.17.16.1', 12000)
 USER_SOCKET.settimeout(1)
 
-generate_message = lambda data: f'[{", ".join(data)}]'
+generate_message = lambda data: '[' + ", ".join(list(map(replace_coma, data))) + ']'
+
+replace_coma = lambda txt: str(txt).replace(',', '%;')
 
 def send_message(msg):
     msg = generate_message(msg)
