@@ -6,6 +6,7 @@ SERVER_SOCKET.bind(('172.20.32.1', serverPort))
 print ("The server is ready to receive")
 
 USERS = dict()
+USERS_NAMES = dict()
 
 def unpack_message(message):
     data = message.strip('][').split(', ')
@@ -15,7 +16,6 @@ def handle(message, clientAddr):
     HANDLER = {
         'login': handle_login,
         'logout': handle_logout,
-        'bind': handle_bind,
         'pm': handle_private_message,
         'broadcast': handle_broadcast
     }
@@ -24,40 +24,35 @@ def handle(message, clientAddr):
     HANDLER[data[0]](data[1:], clientAddr)
 
 def handle_private_message(broadcast_data, clientAddr):
-    global USERS
+    global USERS, USERS_NAMES
+    sender = USERS_NAMES[clientAddr]
     receiver = broadcast_data[0]
     message = broadcast_data[1]
     if (receiver in USERS):
         print(f'message: "{message}" to {receiver}')
-        respond(message, USERS[receiver])
+        newMsg = f'[{sender}] {message}'
+        respond(newMsg, USERS[receiver])
     else:
         print(f'user {receiver} not logged in')
         respond(f'user {receiver} not logged in', clientAddr)
 
-def handle_bind(bind_data, clientAddr):
-    global USERS
-    username = bind_data[0]
-    if (username not in USERS):
-        respond('cant bind to this user', clientAddr)
-    else:
-        USERS[username] = clientAddr
-        print(f'{username} binded')
-        respond('bind success', clientAddr)
-    pass
-
 def handle_broadcast(broadcast_data, clientAddr):
-    global USERS
+    global USERS, USERS_NAMES
+    sender = USERS_NAMES[clientAddr]
+    message = broadcast_data[0]
+    newMsg = f'[{sender}] {message}'
     for user in USERS:
-        respond(broadcast_data, USERS[user])
+        respond(newMsg, USERS[user])
 
 def handle_login(login_data, clientAddr):
-    global USERS
+    global USERS, USERS_NAMES
     username = login_data[0]
     if (username in USERS):
         print(f'user already logged in')
         respond('user already logged in', clientAddr)
     else:
         USERS[username] = clientAddr
+        USERS_NAMES[clientAddr] = username
         print(f'{username} logged in')
         respond('login success', clientAddr)
         print(USERS)
