@@ -1,12 +1,13 @@
-from socket import socket, AF_INET, SOCK_DGRAM
+from socket import socket, AF_INET, SOCK_STREAM 
 import threading
 from sys import argv
 import base64
 
 server_ip = argv[1] 
 server_port = argv[2] 
-USER_SOCKET = socket(AF_INET, SOCK_DGRAM)
+USER_SOCKET = socket(AF_INET, SOCK_STREAM)
 SERVER_ADDR = (server_ip, int(server_port))
+USER_SOCKET.connect(SERVER_ADDR)
 USER_SOCKET.settimeout(1)
 
 generate_message = lambda data: '[' + ", ".join(list(map(replace_coma, data))) + ']'
@@ -19,13 +20,13 @@ def generate_file_message(file_path):
     return base64.b64encode(content)
 
 def send_message(msg):
-    if msg[0] == "pm":
-        msg = generate_message(msg)
-        USER_SOCKET.sendto(msg.encode(), SERVER_ADDR) # encode utf-8
-    elif msg[0] == "pmf": 
-
+    if msg[0] == "pmf": 
         msg = generate_file_message(msg[2])
         USER_SOCKET.sendto(msg, SERVER_ADDR) # base 64
+
+    msg = generate_message(msg)
+    USER_SOCKET.sendto(msg.encode(), SERVER_ADDR) # encode utf-8
+
     print(f'sending {msg} to {SERVER_ADDR}')
 
 def login(username):

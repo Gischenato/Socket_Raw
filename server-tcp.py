@@ -1,10 +1,11 @@
+from os import fork, pipe, write, read, close
 from socket import *
-from socket import socket, AF_INET, SOCK_DGRAM
 from sys import argv
+import threading
 
 server_ip = argv[1] 
 server_port = argv[2] 
-SERVER_SOCKET = socket(AF_INET, SOCK_DGRAM)
+SERVER_SOCKET = socket(AF_INET, SOCK_STREAM)
 SERVER_SOCKET.bind((server_ip, int(server_port)))
 print ("The server is ready to receive")
 
@@ -18,6 +19,8 @@ def unpack_message(message):
     return data
 
 def handle(message, clientAddr):
+    print(f'message: {message}')
+    print(f'clientAddress: {clientAddr}')
     HANDLER = {
         'login': handle_login,
         'logout': handle_logout,
@@ -26,7 +29,7 @@ def handle(message, clientAddr):
         'broadcast': handle_broadcast
     }
     data = unpack_message(message.decode())
-    print(data, clientAddr)
+    print(f'data: {data}')
     HANDLER[data[0]](data[1:], clientAddr)
 
 def handle_private_message_with_file(broadcast_data, clientAddr):
@@ -67,6 +70,10 @@ def handle_broadcast(broadcast_data, clientAddr):
 
 def handle_login(login_data, clientAddr):
     global USERS, USERS_NAMES
+    print(f'login_data: {login_data}')
+    print(f'clientAddr: {clientAddr}')
+    print('users', USERS)
+    print('users_names', USERS)
     username = login_data[0]
     if (username in USERS):
         print(f'user already logged in')
@@ -91,8 +98,36 @@ def handle_logout(logout_data, clientAddr):
         respond('user not logged in', clientAddr)
 
 def respond(message, clientAddr):
-    SERVER_SOCKET.sendto(message.encode(), clientAddr)
+    SERVER_SOCKET.sendto(message.encode(), ('172.31.219.151', clientAddr))
+
+def child_process(clientSocket, clientAddress):
+        print("Waiting for a connection...")
+        print(f"Accepted connection from {clientAddress}")
+        handle(clientSocket.recvfrom(2048)[0], clientAddress[1])
+        clientSocket.close()
+
+SERVER_SOCKET.listen(1)
+SERVER_SOCKET.settimeout(2)
+
+r, w = pipe()
 
 while True:
-    print('-------------------')
-    handle(*SERVER_SOCKET.recvfrom(2048))
+    try:
+        clientSocket, clientAddress = SERVER_SOCKET.accept()
+        child_pid = fork()
+
+        if child_pid == 1:
+            close(r)
+            write(w, USERS)
+            child_process(clientSocket, clientAddress)
+
+        else:
+            close(w)
+
+
+
+    except KeyboardInterrupt:
+        break
+    except timeout:
+        print('deu timeout')
+        pass
