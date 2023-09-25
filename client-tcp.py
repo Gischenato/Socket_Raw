@@ -66,7 +66,7 @@ def handle_user_input():
 def thread_listen():
     while True:
         try:
-            message, _ = USER_SOCKET.recvfrom(2048)
+            message = USER_SOCKET.recv(1024)
             message = message.decode()
             print('<msg> ' + message)
         except:
