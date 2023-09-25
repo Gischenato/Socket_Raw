@@ -11,6 +11,18 @@ print ("The server is ready to receive")
 USERS = dict()
 USERS_NAMES = dict()
 
+def add_to_users(username, clientAddr, tcp_socket=None):
+    global USERS, USERS_NAMES
+    value = {
+        'socket_type': 'tcp' if tcp_socket else 'udp',
+        'clientAddr': clientAddr,
+        'tcp_socket': tcp_socket,
+        'username': username,
+    }
+    USERS[username] = value
+    USERS_NAMES[clientAddr] = value
+
+
 convert_coma = lambda txt: str(txt).replace('%;', ',')
 
 def unpack_message(message):
@@ -34,7 +46,7 @@ def handle(message, clientAddr, tcp_socket=None):
 def handle_private_message_with_file(broadcast_data, clientAddr, tcp_socket=None):
     global USERS, USERS_NAMES
     print(broadcast_data, clientAddr)
-    sender = USERS_NAMES[clientAddr]
+    sender = USERS_NAMES[clientAddr]['username']
     receiver = broadcast_data[0]
     message = convert_coma(broadcast_data[1])
     if (receiver in USERS):
@@ -47,21 +59,22 @@ def handle_private_message_with_file(broadcast_data, clientAddr, tcp_socket=None
 
 def handle_private_message(broadcast_data, clientAddr, tcp_socket=None):
     global USERS, USERS_NAMES
+    print('handle_private_message, ' + str(broadcast_data))
     print(broadcast_data, clientAddr)
-    sender = USERS_NAMES[clientAddr]
+    sender = USERS_NAMES[clientAddr]['username']
     receiver = broadcast_data[0]
     message = convert_coma(broadcast_data[1])
     if (receiver in USERS):
         print(f'message: "{message}" to {receiver}')
         newMsg = f'[{sender}] {message}'
-        respond(newMsg, USERS[receiver], tcp_socket)
+        respond(newMsg, USERS[receiver]['clientAddr'], tcp_socket)
     else:
         print(f'user {receiver} not logged in')
         respond(f'user {receiver} not logged in', clientAddr, tcp_socket)
 
 def handle_broadcast(broadcast_data, clientAddr, tcp_socket=None):
     global USERS, USERS_NAMES
-    sender = USERS_NAMES[clientAddr]
+    sender = USERS_NAMES[clientAddr]['username']
     message = broadcast_data[0]
     newMsg = f'[{sender}] {message}'
     for user in USERS:
@@ -78,8 +91,9 @@ def handle_login(login_data, clientAddr, tcp_socket=None):
         print(f'user already logged in')
         respond('user already logged in', clientAddr, tcp_socket)
     else:
-        USERS[username] = clientAddr
-        USERS_NAMES[clientAddr] = username
+        add_to_users(username, clientAddr, tcp_socket)
+        # USERS[username] = clientAddr
+        # USERS_NAMES[clientAddr] = username
         print(f'{username} logged in')
         respond('login success', clientAddr, tcp_socket)
         print(USERS)
@@ -99,10 +113,11 @@ def handle_logout(logout_data, clientAddr, tcp_socket=None):
 def respond(message, clientAddr, tcp_socket=None):
     print(f'responding {message} to {clientAddr}')
     print('tcp_socket: ', tcp_socket)
-    if (tcp_socket):
-        tcp_socket.send(message.encode())
+    receiver = USERS_NAMES[clientAddr]
+    if (receiver['socket_type'] == 'tcp'):
+        receiver['tcp_socket'].send(message.encode())
     else:
-        SERVER_SOCKET.sendto(message.encode(), (server_ip, clientAddr))
+        SERVER_SOCKET.sendto(message.encode(), (server_ip, receiver['clientAddr']))
 
 def child_process(clientSocket: socket, clientAddress):
     print(f"Accepted connection from {clientAddress}")
