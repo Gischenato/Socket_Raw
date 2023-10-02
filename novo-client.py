@@ -38,12 +38,19 @@ class Client:
 
     def handle_tcp_socket(self, socket:socket):
         message = socket.recv(1024)
-            # if not message:  
+        if not message:  
+            print('closing socket')
+            socket.close()
+            return
         message = message.decode()
         print('<msg> ' + message)
 
     def handle_udp_socket(self, socket:socket):
         message, _ = socket.recvfrom(2048)
+        if not message:  
+            print('closing socket')
+            socket.close()
+            return
         message = message.decode()
         print('<msg> ' + message)
 
@@ -86,7 +93,6 @@ class Client:
         try:
             msg = input()
         except KeyboardInterrupt:
-            print('AQUI')
             return -1
         join_message = lambda msg: ' '.join(msg)
         if (msg.startswith('/')):
@@ -117,7 +123,7 @@ class Client:
             if (self.handle_user_input() == -1): break
 
 def main():
-    client = Client('172.20.32.1', 12000, 'tcp')
+    client = Client('172.23.64.1', 12000, 'tcp')
     try:
         client.run()
     except timeout:

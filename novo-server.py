@@ -98,7 +98,7 @@ class Server:
             except:
                 if not threading.main_thread().is_alive(): break
         print(f'closing tcp on {socket.getsockname()}')
-        socket.shutdown(SHUT_RDWR)
+        # socket.shutdown(SHUT_RDWR)
         # socket.close()
 
     def listen_user_tcp(self, client_socket:socket, clientAddress):
@@ -107,12 +107,52 @@ class Server:
         while True:
             try:
                 message = client_socket.recv(1024)
+                if not message:  
+                    print(F'closing socket {client_socket.getsockname()}')
+                    client_socket.close()
+                    return
+
+                # message = message.decode()
+
                 print(f'{message.decode()} / {client_socket.getsockname()}')
+                self.handle(message, clientAddress[1], client_socket)
             except timeout:
                 if not threading.main_thread().is_alive(): break
         print(f'closing user tcp on {client_socket.getsockname()}')
         client_socket.shutdown(SHUT_RDWR)
         # client_socket.close()
+
+    def handle(self, message, clientAddr, tcp_socket=None):
+        print(f'message: {message}')
+        print(f'clientAddress: {clientAddr}')
+        HANDLER = {
+            'login': self.handle_login,
+            # 'logout': handle_logout,
+            'pm': self.handle_private_message,
+            # 'pmf': handle_private_message_with_file,
+            # 'broadcast': handle_broadcast
+        }
+        data = self.unpack_message(message.decode())
+        print(f'data: {data}')
+        HANDLER[data[0]](data[1:], clientAddr, tcp_socket)
+
+    def handle_private_message(self, broadcast_data, clientAddr, tcp_socket=None):
+        print('handle_private_message, ' + str(broadcast_data))
+        print(broadcast_data, clientAddr)
+        # sender = USERS_NAMES[clientAddr]['username']
+        # receiver = broadcast_data[0]
+        message = convert_coma(broadcast_data[1])
+        print(message)
+        # if (receiver in USERS):
+        #     print(f'message: "{message}" to {receiver}')
+        #     newMsg = f'[{sender}] {message}'
+        #     respond(newMsg, USERS[receiver]['clientAddr'], tcp_socket)
+        # else:
+        #     print(f'user {receiver} not logged in')
+        #     respond(f'user {receiver} not logged in', clientAddr, tcp_socket)
+
+    def handle_login(self, login_data, clientAddr, tcp_socket=None):
+        print(f'handling login {login_data}')
 
     def run(self):
         print('running server')
@@ -129,7 +169,7 @@ class Server:
         return data
     
 def main():
-    server = Server('172.20.32.1', 12000)
+    server = Server('172.23.64.1', 12000)
     try:
         server.run()
     except KeyboardInterrupt:
