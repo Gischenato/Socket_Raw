@@ -85,7 +85,7 @@ class Client:
         pass
 
     def broadcast_message(self, message):
-        self.send_message(['broadcast', message])
+        self.send_message(['broadcast', message], self.DATA_SOCKET)
         pass
 
 
@@ -103,7 +103,8 @@ class Client:
                 self.private_message(msg[1], join_message(msg[2:]))
             elif (option == 'pmf'): pass
             elif (option == 'help'): pass
-            elif (option == 'all'): pass
+            elif (option == 'all'):
+                self.broadcast_message(join_message(msg[1:]))
             elif (option == 'login'):
                 self.login(msg[1])
                 # self.username = msg[1]

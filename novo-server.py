@@ -55,6 +55,9 @@ class Users:
 
     def __str__(self):
         return str(self.data)
+    
+    def __iter__(self): 
+        return iter(self.data)
 
 class Server:
     def __init__(self, host, port):
@@ -136,11 +139,27 @@ class Server:
             'logout': self.handle_logout,
             'pm': self.handle_private_message,
             # 'pmf': handle_private_message_with_file,
-            # 'broadcast': handle_broadcast
+            'broadcast': self.handle_broadcast
         }
         data = self.unpack_message(message.decode())
         print(f'data: {data}')
         HANDLER[data[0]](data[1:], clientAddr, tcp_socket)
+
+    def handle_broadcast(self, data, clientAddr, tcp_socket=None):
+        print(f'handle_broadcast, {data}')
+        print(clientAddr)
+        message = convert_coma(data)
+        for user in self.USERS:
+            # user pode ser uma string ou uma tupla, se for uma string len(user[0]) == 1
+            if len(user[0]) == 1: continue
+            print(user, clientAddr)
+            if self.USERS.get_socket_type(user) == 'tcp':
+                tcp_socket = self.USERS.get_socket(user)
+            else:
+                clientAddr = self.USERS.get_udp_client_addr(user)
+                tcp_socket = None
+            self.respond(message, clientAddr, tcp_socket)
+        pass
 
     def handle_private_message(self, data, clientAddr, tcp_socket=None):
         print('handle_private_message, ' + str(data))
@@ -175,14 +194,12 @@ class Server:
         self.respond(f'Login success', clientAddr, tcp_socket)
     
     def handle_logout(self, _, clientAddr, tcp_socket:socket=None):
-        print(f'handling logout {clientAddr} {tcp_socket}')
-        # if (logout_data[0] not in self.USERS):
-        #     self.respond(f'User {logout_data[0]} not logged in', clientAddr, tcp_socket)
-        #     return
-        
-        # self.USERS.remove(logout_data[0])
-        # self.respond(f'Logout success', clientAddr, tcp_socket)
-
+        print('handle_logout')
+        user = self.USERS.get_username(clientAddr)
+        if (user):
+            self.USERS.remove(user)
+        print(f'handling logout {clientAddr} {tcp_socket} {user}')
+        pprint.pprint(str(self.USERS))
 
     def respond(self, message, clientAddr, tcp_socket:socket=None, message_type='data'):
         print(f"RESPONDENDO {clientAddr}, {tcp_socket}, {message}")
