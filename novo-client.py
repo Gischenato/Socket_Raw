@@ -74,9 +74,9 @@ class Client:
     def login(self, username):
         self.send_message(['login', username], self.CONTROLL_SOCKET)
 
-    def logout(self, username):
+    def logout(self):
         self.username = None
-        self.send_message(['logout', username], self.CONTROLL_SOCKET)
+        self.send_message(['logout'], self.CONTROLL_SOCKET)
     
     def private_message_with_file(self):
         pass
@@ -107,7 +107,8 @@ class Client:
             elif (option == 'login'):
                 self.login(msg[1])
                 # self.username = msg[1]
-            elif (option == 'logout'): pass
+            elif (option == 'logout'):
+                self.logout()
             # else: print('invalid command')
         return 0
 
@@ -123,7 +124,7 @@ class Client:
             if (self.handle_user_input() == -1): break
 
 def main():
-    client = Client('172.23.64.1', 12000, 'tcp')
+    client = Client('192.168.68.107', 12000, argv[1])
     try:
         client.run()
     except timeout:
