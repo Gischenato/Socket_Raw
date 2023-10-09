@@ -3,8 +3,8 @@ import threading
 from sys import argv
 import base64
 
-
 generate_message = lambda data: '[' + ", ".join(list(map(replace_coma, data))) + ']'
+
 
 replace_coma = lambda txt: str(txt).replace(',', '%;')
 
@@ -15,7 +15,7 @@ class Client:
         self.SERVER_PORT = int(server_port)
         self.DATA_SOCKET = socket(AF_INET, SOCK_STREAM) if socket_type == 'tcp' else socket(AF_INET, SOCK_DGRAM)
         self.CONTROLL_SOCKET = socket(AF_INET, SOCK_STREAM) if socket_type == 'tcp' else socket(AF_INET, SOCK_DGRAM)
-
+        self.file_counter = 0
         self.username = None
 
 
@@ -24,6 +24,10 @@ class Client:
         self.CONTROLL_SOCKET.connect((self.SERVER_IP, self.SERVER_PORT + 2))
         self.DATA_SOCKET.connect((self.SERVER_IP, self.SERVER_PORT + 3))
     
+    def is_base64(self, message):
+        message = message.split(' ')[1].replace("b'", "").replace("'", "")
+        decoded_message = base64.b64decode(message)
+        return decoded_message
     
     def close(self):
         self.CONTROLL_SOCKET.close()
@@ -43,7 +47,15 @@ class Client:
             socket.close()
             return
         message = message.decode()
-        print('<msg> ' + message)
+        if message.startswith('file'):
+            message = self.is_base64(message)
+            file_path = f'output({self.file_counter}).txt'
+            with open(file_path, 'wb') as file:
+                file.write(message)
+            print(f'<msg>: received a file ({file_path})')
+            self.file_counter += 1
+        else: 
+            print('<msg> ' + message)
 
     def handle_udp_socket(self, socket:socket):
         message, _ = socket.recvfrom(2048)
@@ -65,12 +77,18 @@ class Client:
                 pass
             except timeout:
                 if not threading.main_thread().is_alive(): break
-            except:
+            except Exception as e:
+                print(e)
                 break
 
     def private_message(self, username, message):
         self.send_message(['pm', username, message], self.DATA_SOCKET)
 
+    def private_message_with_file(self, username, file_path):
+        with open(file_path, 'rb') as file:
+            content = file.read()
+        self.send_message(['pmf', username, base64.b64encode(content)], self.DATA_SOCKET)
+    
     def login(self, username):
         self.send_message(['login', username], self.CONTROLL_SOCKET)
 
@@ -78,8 +96,6 @@ class Client:
         self.username = None
         self.send_message(['logout'], self.CONTROLL_SOCKET)
     
-    def private_message_with_file(self):
-        pass
 
     def print_help(self):
         pass
@@ -101,7 +117,8 @@ class Client:
             if (option == 'exit'): return -1
             elif (option == 'pm'): 
                 self.private_message(msg[1], join_message(msg[2:]))
-            elif (option == 'pmf'): pass
+            elif (option == 'pmf'): 
+                self.private_message_with_file(msg[1], join_message(msg[2:]))
             elif (option == 'help'): pass
             elif (option == 'all'):
                 self.broadcast_message(join_message(msg[1:]))

@@ -138,12 +138,29 @@ class Server:
             'login': self.handle_login,
             'logout': self.handle_logout,
             'pm': self.handle_private_message,
-            # 'pmf': handle_private_message_with_file,
+            'pmf': self.handle_private_message_with_file,
             'broadcast': self.handle_broadcast
         }
         data = self.unpack_message(message.decode())
         print(f'data: {data}')
         HANDLER[data[0]](data[1:], clientAddr, tcp_socket)
+
+    def handle_private_message_with_file(self, data, clientAddr, tcp_socket=None):
+        print('handle_private_message_with_file')
+        receiver, message = data[0], convert_coma(data[1])
+        print('message: ' + message)
+        if (receiver not in self.USERS):
+            print(f'user {receiver} not logged in')
+            self.respond(f'user {receiver} not logged in', clientAddr, tcp_socket)
+            return
+
+        if self.USERS.get_socket_type(receiver) == 'tcp':
+            tcp_socket = self.USERS.get_socket(receiver)
+            print(f'sending message to {receiver} on {tcp_socket.getsockname()}')
+        else:
+            clientAddr = self.USERS.get_udp_client_addr(receiver)
+            tcp_socket = None
+        self.respond(f'file {message}', clientAddr, tcp_socket)
 
     def handle_broadcast(self, data, clientAddr, tcp_socket=None):
         print(f'handle_broadcast, {data}')
@@ -202,7 +219,6 @@ class Server:
         pprint.pprint(str(self.USERS))
 
     def respond(self, message, clientAddr, tcp_socket:socket=None, message_type='data'):
-        print(f"RESPONDENDO {clientAddr}, {tcp_socket}, {message}")
         if (tcp_socket):
             tcp_socket.send(message.encode())
             return
@@ -236,7 +252,5 @@ def main():
         server.run()
     except KeyboardInterrupt:
         print('bye')
-    # except timeout:
-    #     print('aaa')
 
 main()
