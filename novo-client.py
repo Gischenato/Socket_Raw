@@ -25,7 +25,7 @@ class Client:
         self.DATA_SOCKET.connect((self.SERVER_IP, self.SERVER_PORT + 3))
     
     def is_base64(self, message):
-        message = message.split(' ')[1].replace("b'", "").replace("'", "")
+        message = message.split("b'")[1].replace("'", "")
         decoded_message = base64.b64decode(message)
         return decoded_message
     
@@ -40,6 +40,15 @@ class Client:
         else:
             socket.sendto(msg.encode(), (self.SERVER_IP, self.SERVER_PORT))
 
+    def handle_message(self, message):
+        if message.startswith('<file'):
+            file_text = self.is_base64(message)
+            file_path = f'output({self.file_counter}).txt'
+            with open(file_path, 'wb') as file:
+                file.write(file_text)
+            self.file_counter += 1
+        print(message)
+
     def handle_tcp_socket(self, socket:socket):
         message = socket.recv(1024)
         if not message:  
@@ -47,15 +56,8 @@ class Client:
             socket.close()
             return
         message = message.decode()
-        if message.startswith('file'):
-            message = self.is_base64(message)
-            file_path = f'output({self.file_counter}).txt'
-            with open(file_path, 'wb') as file:
-                file.write(message)
-            print(f'<msg>: received a file ({file_path})')
-            self.file_counter += 1
-        else: 
-            print('<msg> ' + message)
+        self.handle_message(message)
+
 
     def handle_udp_socket(self, socket:socket):
         message, _ = socket.recvfrom(2048)
@@ -64,7 +66,7 @@ class Client:
             socket.close()
             return
         message = message.decode()
-        print('<msg> ' + message)
+        self.handle_message(message)
 
     def listen(self, socket:socket):
         socket.settimeout(2)
@@ -82,14 +84,15 @@ class Client:
                 break
 
     def private_message(self, username, message):
-        self.send_message(['pm', username, message], self.DATA_SOCKET)
+        self.send_message(['pm', username, self.username, message], self.DATA_SOCKET)
 
     def private_message_with_file(self, username, file_path):
         with open(file_path, 'rb') as file:
             content = file.read()
-        self.send_message(['pmf', username, base64.b64encode(content)], self.DATA_SOCKET)
+        self.send_message(['pmf', username, self.username, base64.b64encode(content)], self.DATA_SOCKET)
     
     def login(self, username):
+        self.username = username
         self.send_message(['login', username], self.CONTROLL_SOCKET)
 
     def logout(self):
@@ -98,10 +101,15 @@ class Client:
     
 
     def print_help(self):
-        pass
+        print('login                     -> /login <user>')
+        print('logout                    -> /logout')
+        print('broadcast message         -> /all <message>')
+        print('private message           -> /pm [user] <message>')
+        print('private message with file -> /pmf [user] <file>')
+        
 
     def broadcast_message(self, message):
-        self.send_message(['broadcast', message], self.DATA_SOCKET)
+        self.send_message(['broadcast', self.username, message], self.DATA_SOCKET)
         pass
 
 
@@ -119,12 +127,12 @@ class Client:
                 self.private_message(msg[1], join_message(msg[2:]))
             elif (option == 'pmf'): 
                 self.private_message_with_file(msg[1], join_message(msg[2:]))
-            elif (option == 'help'): pass
+            elif (option == 'help'):
+                self.print_help()
             elif (option == 'all'):
                 self.broadcast_message(join_message(msg[1:]))
             elif (option == 'login'):
                 self.login(msg[1])
-                # self.username = msg[1]
             elif (option == 'logout'):
                 self.logout()
             # else: print('invalid command')
@@ -142,7 +150,7 @@ class Client:
             if (self.handle_user_input() == -1): break
 
 def main():
-    client = Client('192.168.68.107', 12000, argv[1])
+    client = Client('192.168.56.1', 12000, argv[1])
     try:
         client.run()
     except timeout:

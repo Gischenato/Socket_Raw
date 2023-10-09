@@ -147,7 +147,7 @@ class Server:
 
     def handle_private_message_with_file(self, data, clientAddr, tcp_socket=None):
         print('handle_private_message_with_file')
-        receiver, message = data[0], convert_coma(data[1])
+        receiver, sender, message = data[0], data[1], convert_coma(data[2])
         print('message: ' + message)
         if (receiver not in self.USERS):
             print(f'user {receiver} not logged in')
@@ -160,12 +160,16 @@ class Server:
         else:
             clientAddr = self.USERS.get_udp_client_addr(receiver)
             tcp_socket = None
-        self.respond(f'file {message}', clientAddr, tcp_socket)
+
+
+        self.respond(f'<file: {sender}> {message}', clientAddr, tcp_socket)
 
     def handle_broadcast(self, data, clientAddr, tcp_socket=None):
         print(f'handle_broadcast, {data}')
         print(clientAddr)
-        message = convert_coma(data)
+        sender, message = data[0], convert_coma(data[1])
+        message = f'<broadcast: {sender}> {message}'
+
         for user in self.USERS:
             # user pode ser uma string ou uma tupla, se for uma string len(user[0]) == 1
             if len(user[0]) == 1: continue
@@ -176,14 +180,13 @@ class Server:
                 clientAddr = self.USERS.get_udp_client_addr(user)
                 tcp_socket = None
             self.respond(message, clientAddr, tcp_socket)
-        pass
 
     def handle_private_message(self, data, clientAddr, tcp_socket=None):
         print('handle_private_message, ' + str(data))
         print(data, clientAddr)
-        receiver, message = data[0], convert_coma(data[1:])
+        receiver, sender, message = data[0], data[1], convert_coma(data[2])
         print(receiver, '-', message)
-        
+
         if (receiver not in self.USERS):
             print(f'user {receiver} not logged in')
             self.respond(f'user {receiver} not logged in', clientAddr, tcp_socket)
@@ -195,6 +198,11 @@ class Server:
         else:
             clientAddr = self.USERS.get_udp_client_addr(receiver)
             tcp_socket = None
+        print('----------------------------')
+        print(f'Responding {message[0]}')
+        
+        message = f'<pm: {sender}> {message}'
+
         self.respond(message, clientAddr, tcp_socket)
 
     def handle_login(self, login_data, clientAddr, tcp_socket:socket=None):
@@ -208,7 +216,7 @@ class Server:
         else:
             self.USERS.add(login_data[0], clientAddr[0], clientAddr[1], tcp_socket)
         pprint.pprint(str(self.USERS))
-        self.respond(f'Login success', clientAddr, tcp_socket)
+        self.respond(f'<login> Login success', clientAddr, tcp_socket)
     
     def handle_logout(self, _, clientAddr, tcp_socket:socket=None):
         print('handle_logout')
@@ -247,7 +255,7 @@ class Server:
         return data
     
 def main():
-    server = Server('192.168.68.107', 12000)
+    server = Server('192.168.56.1', 12000)
     try:
         server.run()
     except KeyboardInterrupt:
